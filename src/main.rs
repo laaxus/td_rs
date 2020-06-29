@@ -6,11 +6,13 @@ use std::env;
 use ggez::timer;
 use std::path;
 use ggez::input::keyboard;
+use std::f64;
 mod blocs;
 
 
 type Point2 = nalgebra::Point2<f32>;
 type Vector2 = nalgebra::Vector2<f32>;
+const BLOC_LENGTH: f32 = 40.0;
 
 const SCREEN_HEIGHT: f32 = 600.;
 const SCREEN_WIDTH: f32 = 600.;
@@ -29,23 +31,31 @@ const CAMERA_SPEED: f32 = 3.0;
 struct Assets {
     bloc_orange: graphics::Image,
     bloc_bleu: graphics::Image,
+	bloc_gris: graphics::Image,
+	bloc_noir: graphics::Image,
 }
 
 impl Assets {
     fn new(ctx: &mut Context) -> GameResult<Assets> {
         let bloc_orange = graphics::Image::new(ctx, "/orange.png")?;
-        let bloc_bleu = graphics::Image::new(ctx, "/bleu.png")?;
+        let bloc_bleu = graphics::Image::new(ctx, "/bleu.png")?;let bloc_bleu = graphics::Image::new(ctx, "/bleu.png")?;
+        let bloc_gris = graphics::Image::new(ctx, "/gris.png")?;let bloc_bleu = graphics::Image::new(ctx, "/bleu.png")?;
+        let bloc_noir = graphics::Image::new(ctx, "/noir.png")?;let bloc_bleu = graphics::Image::new(ctx, "/bleu.png")?;
 
         Ok(Assets {
             bloc_orange,
             bloc_bleu,
+			bloc_gris,
+			bloc_noir,
         })
     }
 
-    fn bloc_image(&mut self, bloc: &blocs::Bloc) -> &mut graphics::Image {
-        match bloc.tag {
+    fn bloc_image(&mut self, blocType: &blocs::BlocType) -> &mut graphics::Image {
+        match blocType {
             blocs::BlocType::Orange => &mut self.bloc_orange,
             blocs::BlocType::Bleu => &mut self.bloc_bleu,
+            blocs::BlocType::Noir => &mut self.bloc_noir,
+            blocs::BlocType::Gris => &mut self.bloc_gris,
         }
     }
 }
@@ -54,24 +64,16 @@ impl Assets {
 /// Constructors functions for different game objects.
 /// **************************************************************************************************
 
-fn create_board() -> Vec<Vec<blocs::Bloc> > {
+fn create_board() -> Vec<Vec<blocs::BlocType> > {
 	let mut vec = vec![];
 	
-	let mut foo = vec![];
-	for i in 0..15 {
-		let mut bleu: blocs::Bloc = blocs::Bloc::new_bleu();
-		bleu.pos = Point2::new(-SCREEN_WIDTH/2.0 + 40.0*(i as f32), SCREEN_HEIGHT/2.0);
-		foo.push(bleu);
+	for i in 0..20 {
+		let mut foo = vec![];
+		for j in 0..i {
+			foo.push(blocs::BlocType::Bleu);
+		}
+		vec.push(foo);
 	}
-	vec.push(foo);
-	
-	let mut foo2 = vec![];
-	for i in 0..15 {
-		let mut orange: blocs::Bloc = blocs::Bloc::new_orange();
-		orange.pos = Point2::new(-SCREEN_WIDTH/2.0 + 40.0*(i as f32), SCREEN_HEIGHT/2.0-40.0);
-		foo2.push(orange);
-	}
-	vec.push(foo2);
 
 	vec
 }
@@ -101,10 +103,31 @@ fn draw_bloc(
 	
 		let (screen_w, screen_h) = world_coords;
 		let pos = world_to_screen_coords(screen_w, screen_h, subs_p2(bloc.pos,origin));
-		let image = assets.bloc_image(bloc);
+		let image = assets.bloc_image(&bloc.tag);
 		let draw_params = graphics::DrawParam::new()
 			.dest(pos);
 		graphics::draw(ctx, image, draw_params)
+}
+
+fn draw_board(
+	assets: &mut Assets,
+	ctx: &mut Context,
+	board: &Vec<Vec<blocs::BlocType> >,
+	world_coords: (f32, f32),
+	origin: Point2,
+	) -> GameResult {
+	let (screen_w, screen_h) = world_coords;
+	for i in 0..board.len() {
+		for j in 0..board[i].len() {
+			let bloc_pos = Point2::new(-SCREEN_WIDTH/2.0 + BLOC_LENGTH * (j as f32) , SCREEN_HEIGHT/2.0 - BLOC_LENGTH * (i as f32));
+			let pos = world_to_screen_coords(screen_w, screen_h, subs_p2(bloc_pos,origin));
+			let image = assets.bloc_image(&board[i][j]);
+			let draw_params = graphics::DrawParam::new()
+				.dest(pos);
+			graphics::draw(ctx, image, draw_params).unwrap();
+		}
+	}
+	Ok(())
 }
 
 fn adds_p2(a : Point2, b : Point2) -> Point2 {
@@ -142,7 +165,7 @@ fn main() -> GameResult {
 struct MyGame {
     // Your state here...
     assets: Assets,
-	board: Vec<Vec<blocs::Bloc>>,
+	board: Vec<Vec<blocs::BlocType>>,
 	screen_width: f32,
     screen_height: f32,
 	origin : Point2,
@@ -191,6 +214,9 @@ impl EventHandler for MyGame {
 				self.origin.x -= CAMERA_SPEED;
 			}
 			
+			self.origin.x = self.origin.x.max(0.0);
+			self.origin.y = self.origin.y.min(0.0);
+			
             
         }
         Ok(())
@@ -203,12 +229,8 @@ impl EventHandler for MyGame {
 		let assets = &mut self.assets;
         let coords = (self.screen_width, self.screen_height);
 		
-		for line in &self.board {
-			for bloc in line {
-				draw_bloc(assets, ctx, bloc, coords, self.origin)?;
-			}
-		}
-
+		draw_board(assets, ctx, &self.board, coords, self.origin)?;
+		
         graphics::present(ctx)?;
 		// This ideally prevents the game from using 100% CPU all the time
         // even if vsync is off.
