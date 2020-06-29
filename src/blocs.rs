@@ -6,8 +6,8 @@ type Vector2 = nalgebra::Vector2<f32>;
 pub enum BlocType {
     Orange,
     Bleu,
-	Gris,
-	Noir,
+    Gris,
+    Noir,
 }
 
 pub struct Bloc {
@@ -29,15 +29,15 @@ impl Bloc {
             pos: Point2::origin(),
         }
     }
-	
-	pub fn new_gris() -> Bloc {
+
+    pub fn new_gris() -> Bloc {
         Bloc {
             tag: BlocType::Gris,
             pos: Point2::origin(),
         }
     }
-	
-	pub fn new_noir() -> Bloc {
+
+    pub fn new_noir() -> Bloc {
         Bloc {
             tag: BlocType::Noir,
             pos: Point2::origin(),
