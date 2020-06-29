@@ -1,12 +1,15 @@
 use ggez::event::{self, EventHandler};
 use ggez::graphics::{Color, DrawMode, DrawParam};
 use ggez::input::keyboard;
+use ggez::input::mouse;
+use ggez::input::mouse::MouseButton;
 use ggez::nalgebra;
 use ggez::timer;
 use ggez::{graphics, Context, ContextBuilder, GameResult};
 use std::env;
 use std::f64;
 use std::path;
+use math::round::floor;
 
 mod blocs;
 mod save;
@@ -82,6 +85,20 @@ fn create_board() -> Vec<Vec<blocs::BlocType>> {
     vec
 }
 
+fn create_board_rect(x: u32, y:u32) -> Vec<Vec<blocs::BlocType>> {
+    let mut vec = vec![];
+
+    for i in 0..x {
+        let mut foo = vec![];
+        for j in 0..y {
+            foo.push(blocs::BlocType::Gris);
+        }
+        vec.push(foo);
+    }
+
+    vec
+}
+
 /// **************************************************************************************************
 /// A couple of utility functions.
 /// **************************************************************************************************
@@ -90,9 +107,15 @@ fn create_board() -> Vec<Vec<blocs::BlocType>> {
 /// has Y pointing up and the origin at the center,
 /// to the screen coordinate system, which has Y
 /// pointing downward and the origin at the top-left,
-fn world_to_screen_coords(screen_width: f32, screen_height: f32, point: Point2) -> Point2 {
-    let x = point.x + screen_width / 2.0;
-    let y = screen_height - (point.y + screen_height / 2.0);
+fn world_to_screen_coords(point: Point2) -> Point2 {
+    let x = point.x + SCREEN_WIDTH / 2.0;
+    let y = SCREEN_HEIGHT/2.0 - point.y ;
+    Point2::new(x, y)
+}
+
+fn screen_to_world_coords(point: Point2) -> Point2 {
+    let x = point.x - SCREEN_WIDTH / 2.0;
+    let y = SCREEN_HEIGHT / 2.0 - point.y;
     Point2::new(x, y)
 }
 
@@ -109,7 +132,7 @@ fn draw_board(ctx: &mut Context, mygame: &mut MyGame) -> GameResult {
                 -SCREEN_WIDTH / 2.0 + BLOC_LENGTH * (j as f32),
                 SCREEN_HEIGHT / 2.0 - BLOC_LENGTH * (i as f32),
             );
-            let pos = world_to_screen_coords(screen_w, screen_h, subs_p2(bloc_pos, origin));
+            let pos = world_to_screen_coords(subs_p2(bloc_pos, origin));
             let image = assets.bloc_image(&board[i][j]);
             let draw_params = graphics::DrawParam::new().dest(pos);
             graphics::draw(ctx, image, draw_params).unwrap();
@@ -144,7 +167,7 @@ fn main() -> GameResult {
 
     println!("{}", graphics::renderer_info(ctx)?);
     let game = &mut MyGame::new(ctx).unwrap();
-   
+   ///save::save(&game.board);
     event::run(ctx, events_loop, game)
 }
 
@@ -164,7 +187,8 @@ impl MyGame {
         let board = match save::load() {
 			Ok(board) => board,
 			Err(_) => create_board(),
-		};
+		}; 
+		///let board = create_board_rect(20,30);
         let (screen_width, screen_height) = graphics::drawable_size(ctx);
         let origin = Point2::new(0.0, 0.0);
 
@@ -200,9 +224,14 @@ impl EventHandler for MyGame {
             if keyboard::is_key_pressed(ctx, keyboard::KeyCode::Left) {
                 self.origin.x -= CAMERA_SPEED;
             }
-
+			
             self.origin.x = self.origin.x.max(0.0);
             self.origin.y = self.origin.y.min(0.0);
+			
+			if keyboard::is_key_pressed(ctx, keyboard::KeyCode::A) {
+                self.board[5][2] = blocs::change_bloc_type(&self.board[5][2]);
+            }
+			
         }
         Ok(())
     }
@@ -222,4 +251,20 @@ impl EventHandler for MyGame {
         timer::yield_now();
         Ok(())
     }
+	
+	fn mouse_button_down_event(
+        &mut self, 
+		_ctx: &mut Context,
+        button: MouseButton, 
+        x: f32, 
+        y: f32
+    ) { 
+		if button == MouseButton::Left {
+			let j:usize = floor(((x + self.origin.x) / BLOC_LENGTH).into() , 0) as usize;
+			let i:usize = floor(((y - self.origin.y) / BLOC_LENGTH).into() , 0) as usize;
+			self.board[i][j] = blocs::change_bloc_type(&self.board[i][j]);
+			
+		}
+
+	}
 }

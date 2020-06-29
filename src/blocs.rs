@@ -10,6 +10,15 @@ pub enum BlocType {
     Noir,
 }
 
+pub fn change_bloc_type(bt : &BlocType) -> BlocType {
+	match bt {
+		BlocType::Orange => BlocType::Bleu,
+		BlocType::Bleu => BlocType::Gris,
+		BlocType::Gris => BlocType::Noir,
+		BlocType::Noir => BlocType::Orange,
+	}
+}
+
 pub struct Bloc {
     pub tag: BlocType,
     pub pos: Point2,
