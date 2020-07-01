@@ -72,27 +72,15 @@ impl Assets {
 /// Constructors functions for different game objects.
 /// **************************************************************************************************
 
-fn create_board() -> Vec<Vec<blocs::BlocType>> {
+
+fn create_board_rect(x: u32, y: u32) -> Vec<Vec<blocs::Bloc>> {
     let mut vec = vec![];
 
-    for i in 0..20 {
+    for i in 0..x {
         let mut foo = vec![];
-        for _j in 0..i {
-            foo.push(blocs::BlocType::Bleu);
-        }
-        vec.push(foo);
-    }
-
-    vec
-}
-
-fn create_board_rect(x: u32, y: u32) -> Vec<Vec<blocs::BlocType>> {
-    let mut vec = vec![];
-
-    for _i in 0..x {
-        let mut foo = vec![];
-        for _j in 0..y {
-            foo.push(blocs::BlocType::Gris);
+        for j in 0..y {
+			let bloc = blocs::Bloc::new_gris(j,i);
+            foo.push(bloc);
         }
         vec.push(foo);
     }
@@ -139,12 +127,9 @@ fn draw_board(ctx: &mut Context, mygame: &mut MyGame) -> GameResult {
 
     for i in 0..board.len() {
         for j in 0..board[i].len() {
-            let bloc_pos = Point2::new(
-                -SCREEN_WIDTH / 2.0 + BLOC_LENGTH * (j as f32),
-                SCREEN_HEIGHT / 2.0 - BLOC_LENGTH * (i as f32),
-            );
+            let bloc_pos = board[i][j].pos;
             let pos = subs_p2(world_to_screen_coords(bloc_pos),origin);
-            let image = assets.bloc_image(&board[i][j]);
+            let image = assets.bloc_image(&board[i][j].tag);
             let draw_params = graphics::DrawParam::new().dest(pos);
             graphics::draw(ctx, image, draw_params).unwrap();
         }
@@ -182,12 +167,12 @@ struct Settings {
 
 struct MyGame {
     assets: Assets,
-    board: Vec<Vec<blocs::BlocType>>,
+    board: Vec<Vec<blocs::Bloc>>,
     origin: Point2,
     settings: Settings,
 }
 
-fn load_board() -> Vec<Vec<blocs::BlocType>> {
+fn load_board() -> Vec<Vec<blocs::Bloc>> {
 	match save::load() {
             Ok(board) => board,
             Err(_) => create_board_rect(20,30),
@@ -235,8 +220,23 @@ fn main() -> GameResult {
     } else {
         path::PathBuf::from("./resources")
     };
-
-    let cb = ContextBuilder::new("drawing", "ggez").add_resource_path(resource_dir);
+	
+	/*let string = String::from("Gr -750 450");
+	let vec : Vec<&str> = string.split(" ").collect();
+	
+    let tag = match vec[0] {
+        "Or" => blocs::BlocType::Orange,
+        "Bl" => blocs::BlocType::Bleu,
+        "Gr" => blocs::BlocType::Gris,
+        "No" => blocs::BlocType::Noir,
+        "Ro" => blocs::BlocType::Rouge,
+        _ => blocs::BlocType::Noir,
+    };
+	let x : f32 = vec[1].parse().expect("Error parsing loading save");
+	let y : f32 = vec[1].parse().expect("Error parsing loading save");
+	println!("{} {} {}",vec[0],x,y);
+	Ok(()) */
+     let cb = ContextBuilder::new("drawing", "ggez").add_resource_path(resource_dir);
 
     let (ctx, events_loop) = &mut cb
         .window_mode(ggez::conf::WindowMode::default().dimensions(SCREEN_WIDTH, SCREEN_HEIGHT))
@@ -246,7 +246,7 @@ fn main() -> GameResult {
     println!("{}", graphics::renderer_info(ctx)?);
     let game = &mut MyGame::new(ctx).unwrap();
     
-    event::run(ctx, events_loop, game)
+    event::run(ctx, events_loop, game) 
 }
 
 impl EventHandler for MyGame {
@@ -297,7 +297,7 @@ impl EventHandler for MyGame {
             let j: usize = floor(((x + self.origin.x) / BLOC_LENGTH).into(), 0) as usize;
             let i: usize = floor(((y + self.origin.y) / BLOC_LENGTH).into(), 0) as usize;
 			if i < self.settings.board_height && j < self.settings.board_width {
-				self.board[i][j] = blocs::change_bloc_type(&self.board[i][j]);
+				self.board[i][j].tag = blocs::change_bloc_type(&self.board[i][j].tag);
 			}
         }
     }
@@ -316,9 +316,9 @@ impl EventHandler for MyGame {
         } else if keycode == KeyCode::O {
             self.settings.gamemode = GameMode::Normal;
         }else if keycode == KeyCode::S {
-            save::save(&self.board).expect("Failed to save");
+           save::save(&self.board).expect("Failed to save");
         }else if keycode == KeyCode::L {
-            self.board = load_board();
+           self.board = load_board();
         }else if keycode == KeyCode::M {
             self.board = create_board_rect(14,20);
         }

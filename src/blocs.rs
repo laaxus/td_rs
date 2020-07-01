@@ -1,5 +1,8 @@
 use ggez::nalgebra;
 
+use crate::{BLOC_LENGTH,SCREEN_HEIGHT,SCREEN_WIDTH};
+
+
 type Point2 = nalgebra::Point2<f32>;
 type Vector2 = nalgebra::Vector2<f32>;
 
@@ -41,10 +44,10 @@ impl Bloc {
         }
     }
 
-    pub fn new_gris() -> Bloc {
+    pub fn new_gris(i: u32, j:u32) -> Bloc {
         Bloc {
             tag: BlocType::Gris,
-            pos: Point2::origin(),
+            pos: Point2::new((i as f32) * BLOC_LENGTH - SCREEN_WIDTH/2.0, SCREEN_HEIGHT/2.0 - (j as f32) * BLOC_LENGTH),
         }
     }
 
