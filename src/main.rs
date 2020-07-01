@@ -37,6 +37,7 @@ struct Assets {
     bloc_gris: graphics::Image,
     bloc_noir: graphics::Image,
 	bloc_rouge: graphics::Image,
+	bloc_vert: graphics::Image,
 }
 
 impl Assets {
@@ -46,7 +47,7 @@ impl Assets {
         let bloc_gris = graphics::Image::new(ctx, "/gris_60.png")?;
         let bloc_noir = graphics::Image::new(ctx, "/noir_60.png")?;
 		let bloc_rouge = graphics::Image::new(ctx, "/rouge_60.png")?;
-      
+		let bloc_vert = graphics::Image::new(ctx, "/vert_20.png")?;
 
         Ok(Assets {
             bloc_orange,
@@ -54,6 +55,7 @@ impl Assets {
             bloc_gris,
             bloc_noir,
 			bloc_rouge,
+			bloc_vert,
         })
     }
 
@@ -64,6 +66,7 @@ impl Assets {
             blocs::BlocType::Noir => &mut self.bloc_noir,
             blocs::BlocType::Gris => &mut self.bloc_gris,
 			blocs::BlocType::Rouge => &mut self.bloc_rouge,
+			blocs::BlocType::Vert => &mut self.bloc_vert,
         }
     }
 }
@@ -174,8 +177,8 @@ struct MyGame {
 
 fn load_board() -> Vec<Vec<blocs::Bloc>> {
 	match save::load() {
-            Ok(board) => board,
-            Err(_) => create_board_rect(20,30),
+            Ok(save) => save.board,
+            Err(_) => create_board_rect(14,20),
         }
 }
 
@@ -183,8 +186,8 @@ impl MyGame {
     pub fn new(ctx: &mut Context) -> GameResult<MyGame> {
         // Load/create resources such as images here.
         let assets = Assets::new(ctx)?;
-        let board = load_board();
-        // let board = create_board_rect(20,30);
+        // let board = load_board();
+         let board = create_board_rect(14,20);
         let origin = Point2::new(0.0, 0.0);
 		
         let gamemode = GameMode::Normal;
@@ -221,22 +224,8 @@ fn main() -> GameResult {
         path::PathBuf::from("./resources")
     };
 	
-	/*let string = String::from("Gr -750 450");
-	let vec : Vec<&str> = string.split(" ").collect();
-	
-    let tag = match vec[0] {
-        "Or" => blocs::BlocType::Orange,
-        "Bl" => blocs::BlocType::Bleu,
-        "Gr" => blocs::BlocType::Gris,
-        "No" => blocs::BlocType::Noir,
-        "Ro" => blocs::BlocType::Rouge,
-        _ => blocs::BlocType::Noir,
-    };
-	let x : f32 = vec[1].parse().expect("Error parsing loading save");
-	let y : f32 = vec[1].parse().expect("Error parsing loading save");
-	println!("{} {} {}",vec[0],x,y);
-	Ok(()) */
-     let cb = ContextBuilder::new("drawing", "ggez").add_resource_path(resource_dir);
+
+    let cb = ContextBuilder::new("drawing", "ggez").add_resource_path(resource_dir);
 
     let (ctx, events_loop) = &mut cb
         .window_mode(ggez::conf::WindowMode::default().dimensions(SCREEN_WIDTH, SCREEN_HEIGHT))
@@ -316,7 +305,9 @@ impl EventHandler for MyGame {
         } else if keycode == KeyCode::O {
             self.settings.gamemode = GameMode::Normal;
         }else if keycode == KeyCode::S {
-           save::save(&self.board).expect("Failed to save");
+			let board = self.board.clone();
+			let save = save::Save{board};
+           save::save(&save).expect("Failed to save");
         }else if keycode == KeyCode::L {
            self.board = load_board();
         }else if keycode == KeyCode::M {

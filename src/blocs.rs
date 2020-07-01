@@ -1,17 +1,21 @@
 use ggez::nalgebra;
 
 use crate::{BLOC_LENGTH,SCREEN_HEIGHT,SCREEN_WIDTH};
+use serde::Deserialize;
+use serde::Serialize;
 
 
 type Point2 = nalgebra::Point2<f32>;
 type Vector2 = nalgebra::Vector2<f32>;
 
+#[derive(Serialize, Deserialize, Clone)]
 pub enum BlocType {
     Orange,
     Bleu,
     Gris,
     Noir,
 	Rouge,
+	Vert,
 }
 
 pub fn change_bloc_type(bt: &BlocType) -> BlocType {
@@ -21,9 +25,11 @@ pub fn change_bloc_type(bt: &BlocType) -> BlocType {
         BlocType::Gris => BlocType::Noir,
         BlocType::Noir => BlocType::Rouge,
 		BlocType::Rouge => BlocType::Orange,
+		BlocType::Vert => BlocType::Vert,
     }
 }
 
+#[derive(Serialize, Deserialize, Clone)]
 pub struct Bloc {
     pub tag: BlocType,
     pub pos: Point2,
