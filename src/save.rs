@@ -1,25 +1,25 @@
-use crate::blocs::{BlocType,Bloc};
-use ron::de::from_str;
+use crate::blocs::{Bloc,Mob};
 use ron::de::from_reader;
 use ron::ser::to_string;
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use serde::{Deserialize, Serialize};
+use std::io::{Error, ErrorKind, prelude::*, Result};
 use std::fs::File;
-use std::io::prelude::*;
-use std::io::Result;
-
 use ggez::nalgebra;
 
 type Point2 = nalgebra::Point2<f32>;
 
+#[derive(Serialize, Deserialize, Clone)]
+pub struct Map {
+	pub board: Vec<Vec<Bloc>>,
+	pub mobs: Vec<Mob>,
+}
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct Save {
-    pub board: Vec<Vec<Bloc>>,
+    pub map: Map,
 }
 
 pub fn save(save: &Save) -> Result<()> {
- 
-
     let s = to_string(&save).expect("Serialization failed");
 
     let mut file = File::create("save.ron")?;
@@ -28,17 +28,13 @@ pub fn save(save: &Save) -> Result<()> {
 }
 
 pub fn load() -> Result<Save> {
-    let mut file = File::open("save.ron")?;
+    let file = File::open("save.ron")?;
+
+	let custom_error = Error::new(ErrorKind::Other, "Error from reader loading save");
+    match from_reader(file) {
+        Ok(x) => Ok(x),
+        Err(_) => Err(custom_error),
+    }
+
     
-
-    let save: Save = match from_reader(file) {
-        Ok(x) => x,
-        Err(e) => {
-            println!("Failed to load save: {}", e);
-
-            std::process::exit(1);
-        }
-    };
-	
-    Ok(save)
 }

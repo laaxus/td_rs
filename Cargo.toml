@@ -12,5 +12,6 @@ ggez = "0.5.1"
 ron = "0.6.0"
 serde = "1.0.114"
 libmath = "0.2.1"
+queues = "1.1.0"
 
 nalgebra = { version = "0.18.1", features = ["serde-serialize"] }
