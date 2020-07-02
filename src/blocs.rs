@@ -33,6 +33,7 @@ pub fn change_bloc_type(bt: &BlocType) -> BlocType {
 pub struct Bloc {
     pub tag: BlocType,
     pub pos: Point2,
+	pub parent : Option<(u32,u32)>,
 }
 
 impl Bloc {
@@ -40,6 +41,7 @@ impl Bloc {
         Bloc {
             tag: BlocType::Orange,
             pos: Point2::origin(),
+			parent : None,
         }
     }
 
@@ -47,6 +49,7 @@ impl Bloc {
         Bloc {
             tag: BlocType::Bleu,
             pos: Point2::origin(),
+			parent : None,
         }
     }
 
@@ -54,13 +57,15 @@ impl Bloc {
         Bloc {
             tag: BlocType::Gris,
             pos: Point2::new((i as f32) * BLOC_LENGTH - SCREEN_WIDTH/2.0, SCREEN_HEIGHT/2.0 - (j as f32) * BLOC_LENGTH),
-        }
+			parent : None,
+		}
     }
 
     pub fn new_noir() -> Bloc {
         Bloc {
             tag: BlocType::Noir,
             pos: Point2::origin(),
+			parent : None,
         }
     }
 }

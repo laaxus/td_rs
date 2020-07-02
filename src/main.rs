@@ -15,6 +15,7 @@ mod blocs;
 mod save;
 
 type Point2 = nalgebra::Point2<f32>;
+type Vector2 = nalgebra::Vector2<f32>;
 
 const BLOC_LENGTH: f32 = 60.0;
 
@@ -87,7 +88,6 @@ fn create_board_rect(x: u32, y: u32) -> Vec<Vec<blocs::Bloc>> {
         }
         vec.push(foo);
     }
-
     vec
 }
 
@@ -111,14 +111,6 @@ fn screen_to_world_coords(point: Point2) -> Point2 {
     Point2::new(x, y)
 }
 
-fn adds_p2(a: Point2, b: Point2) -> Point2 {
-    Point2::new(a.x + b.x, a.y + b.y)
-}
-
-fn subs_p2(a: Point2, b: Point2) -> Point2 {
-    Point2::new(a.x - b.x, a.y - b.y)
-}
-
 /// **************************************************************************************************
 /// A couple of drawing functions.
 /// **************************************************************************************************
@@ -131,7 +123,7 @@ fn draw_board(ctx: &mut Context, mygame: &mut MyGame) -> GameResult {
     for i in 0..board.len() {
         for j in 0..board[i].len() {
             let bloc_pos = board[i][j].pos;
-            let pos = subs_p2(world_to_screen_coords(bloc_pos),origin);
+            let pos = world_to_screen_coords(bloc_pos) - origin;
             let image = assets.bloc_image(&board[i][j].tag);
             let draw_params = graphics::DrawParam::new().dest(pos);
             graphics::draw(ctx, image, draw_params).unwrap();
@@ -171,7 +163,7 @@ struct Settings {
 struct MyGame {
     assets: Assets,
     board: Vec<Vec<blocs::Bloc>>,
-    origin: Point2,
+    origin: Vector2,
     settings: Settings,
 }
 
@@ -186,9 +178,9 @@ impl MyGame {
     pub fn new(ctx: &mut Context) -> GameResult<MyGame> {
         // Load/create resources such as images here.
         let assets = Assets::new(ctx)?;
-        // let board = load_board();
-         let board = create_board_rect(14,20);
-        let origin = Point2::new(0.0, 0.0);
+        let board = load_board();
+        // let board = create_board_rect(14,20);
+        let origin = Vector2::new(0.0, 0.0);
 		
         let gamemode = GameMode::Normal;
 		let board_height = board.len();

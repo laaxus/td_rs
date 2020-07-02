@@ -9,45 +9,8 @@ use std::io::Result;
 
 use ggez::nalgebra;
 
-
 type Point2 = nalgebra::Point2<f32>;
 
-
-
-fn bt_to_str(bloc: &Bloc) -> String {
-    let tag =  match bloc.tag {
-        BlocType::Orange => String::from("Or"),
-        BlocType::Bleu => String::from("Bl"),
-        BlocType::Gris => String::from("Gr"),
-        BlocType::Noir => String::from("No"),
-        BlocType::Rouge => String::from("Ro"),
-        BlocType::Vert => String::from("Ve"),
-    };
-	let x = bloc.pos.x.to_string();
-	let y = bloc.pos.y.to_string();
-	format!("{} {} {}",tag,x,y)
-}
-
-fn str_to_bt(string: &str) -> Bloc {
-	let vec : Vec<&str> = string.split(" ").collect();
-    let tag = match vec[0] {
-        "Or" => BlocType::Orange,
-        "Bl" => BlocType::Bleu,
-        "Gr" => BlocType::Gris,
-        "No" => BlocType::Noir,
-        "Ro" => BlocType::Rouge,
-        "Ve" => BlocType::Vert,
-        _ => BlocType::Noir,
-    };
-	let x : f32 = vec[1].parse().expect("Error parsing loading save");
-	let y : f32 = vec[2].parse().expect("Error parsing loading save");
-	let pos = Point2::new(x,y);
-	
-	Bloc{
-		tag,
-		pos,
-	}
-}
 
 #[derive(Serialize, Deserialize)]
 pub struct Save {
