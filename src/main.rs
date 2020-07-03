@@ -297,14 +297,20 @@ impl EventHandler for MyGame {
             }
 			
 			for mob in &mut self.map.mobs {
-				let (i,j) = world_to_board_coords(mob.pos.x + mob.mob_size/2.0 , mob.pos.y - mob.mob_size/2.0,self.origin);
-				let  (mut x,mut y) : (f32,f32) = (0.0,0.0);
+				// let (i,j) = world_to_board_coords(mob.pos.x + mob.mob_size/2.0 , mob.pos.y - mob.mob_size/2.0,self.origin);
+				let (i,j) = world_to_board_coords(mob.pos.x, mob.pos.y,self.origin);
+				println!("(i,j) {:?}",(i,j));	
 				if let Some((k,l)) = self.map.board[i][j].parent{
-						let (xa,ya) = board_to_world_coords(k,l);	
-						x = xa;
-						y = ya;
+						println!("(k,l) {:?}",(k,l));	
+						let m = k as f32 - i as f32;
+						let n = l as f32 - j as f32;
+						println!("(m,n) : {:?}",(m,n));
+						let dest = Vector2::new(n, m * -1.0);
+						println!("dest {:?}",dest);
+						mob.update(dest);
 				}
-				mob.update(Vector2::new(x+BLOC_LENGTH/2.0,y - BLOC_LENGTH/2.0));
+				println!("mob dir {:?}",mob.dir);
+				mob.walk();
 			}
 
             self.origin.x = self.origin.x.max(-1.0 * BLOC_LENGTH);
@@ -371,7 +377,7 @@ impl EventHandler for MyGame {
 			
         }else if keycode == KeyCode::P {
             ingame::find_path(&mut self.map.board).expect("Error finding Path");
-			println!("{:?}",self.map.board[6][0].parent);
+			println!("{:?}",self.map.board[8][9].parent);
 			
         }else if keycode == KeyCode::A {
 			ingame::find_path(&mut self.map.board).expect("Error finding Path");

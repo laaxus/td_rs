@@ -39,7 +39,7 @@ pub fn find_path(board : &mut Vec<Vec<blocs::Bloc>>) -> Result<()> {
 		}
 		if j < board_width - 1 {
 			if (board[i][j+1].tag == blocs::BlocType::Gris || board[i][j+1].tag == blocs::BlocType::Bleu) && board[i][j+1].parent == None {
-				add_bloc(i,j+11,i,j,&mut q,board);
+				add_bloc(i,j+1,i,j,&mut q,board);
 			}
 		}
 	}
