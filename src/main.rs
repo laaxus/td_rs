@@ -1,9 +1,7 @@
 use ggez::event::{self, EventHandler};
 use ggez::graphics::{DrawParam};
-use ggez::input::keyboard;
+use ggez::input::{keyboard,mouse::MouseButton};
 use ggez::input::keyboard::{KeyCode, KeyMods};
-use ggez::input::mouse;
-use ggez::input::mouse::MouseButton;
 use ggez::nalgebra;
 use ggez::timer;
 use ggez::{graphics, Context, ContextBuilder, GameResult};
@@ -15,6 +13,8 @@ use std::path;
 mod blocs;
 mod ingame;
 mod save;
+mod mobs;
+mod bullets;
 
 type Point2 = nalgebra::Point2<f32>;
 type Vector2 = nalgebra::Vector2<f32>;
@@ -41,6 +41,7 @@ struct Assets {
     bloc_noir: graphics::Image,
     bloc_rouge: graphics::Image,
     mob_vert: graphics::Image,
+	bullet_noir: graphics::Image,
 }
 
 impl Assets {
@@ -51,6 +52,7 @@ impl Assets {
         let bloc_noir = graphics::Image::new(ctx, "/noir_60.png")?;
         let bloc_rouge = graphics::Image::new(ctx, "/rouge_60.png")?;
         let mob_vert = graphics::Image::new(ctx, "/vert_20.png")?;
+        let bullet_noir = graphics::Image::new(ctx, "/noir_10.png")?;
 
         Ok(Assets {
             bloc_orange,
@@ -59,6 +61,7 @@ impl Assets {
             bloc_noir,
             bloc_rouge,
             mob_vert,
+			bullet_noir,
         })
     }
 
@@ -72,9 +75,15 @@ impl Assets {
         }
     }
 	
-	fn mob_image(&mut self, mobtype: &blocs::MobType) -> &mut graphics::Image {
+	fn mob_image(&mut self, mobtype: &mobs::MobType) -> &mut graphics::Image {
         match mobtype {
-            blocs::MobType::Vert => &mut self.mob_vert,
+            mobs::MobType::Vert => &mut self.mob_vert,
+        }
+    }
+	
+	fn bullet_image(&mut self, bullettype: &bullets::BulletType) -> &mut graphics::Image {
+        match bullettype {
+            bullets::BulletType::CannonBall => &mut self.bullet_noir,
         }
     }
 }
@@ -123,7 +132,7 @@ fn screen_to_board_coords(x:f32, y:f32, origin:Vector2) -> (usize,usize) {
     (i,j)
 }
 
-fn world_to_board_coords(x:f32, y:f32, origin:Vector2) -> (usize,usize) {
+fn world_to_board_coords(x:f32, y:f32) -> (usize,usize) {
 	let j = floor(((x + SCREEN_WIDTH / 2.0) / BLOC_LENGTH).into(),0) as usize;
 	let i = floor(((SCREEN_HEIGHT / 2.0 - y) / BLOC_LENGTH).into(),0) as usize;
 	(i,j)
@@ -158,16 +167,35 @@ fn draw_board(ctx: &mut Context, mygame: &mut MyGame) -> GameResult {
 
 fn draw_mobs(ctx: &mut Context, mygame: &mut MyGame) -> GameResult {
     let assets = &mut mygame.assets;
-    let mobs = &mygame.map.mobs;
+    let mobs = &mygame.mobs;
     let origin = mygame.origin.clone();
 
     for i in 0..mobs.len() {
-		let mob_pos = mobs[i].pos;
-		let pos = world_to_screen_coords(Point2::new(mob_pos.x,mob_pos.y)) - origin;
-		let image = assets.mob_image(&mobs[i].tag);
-		let draw_params = graphics::DrawParam::new().dest(pos);
-		graphics::draw(ctx, image, draw_params).unwrap();   
-    }
+		if mobs[i].alive {
+			let mob_pos = mobs[i].rect;
+			let pos = world_to_screen_coords(Point2::new(mob_pos.x,mob_pos.y)) - origin;
+			let image = assets.mob_image(&mobs[i].tag);
+			let draw_params = graphics::DrawParam::new().dest(pos);
+			graphics::draw(ctx, image, draw_params).unwrap();   
+		}
+	}
+    Ok(())
+}
+
+fn draw_bullets(ctx: &mut Context, mygame: &mut MyGame) -> GameResult {
+    let assets = &mut mygame.assets;
+    let bullets = &mygame.bullets;
+    let origin = mygame.origin.clone();
+
+    for i in 0..bullets.len() {
+		if bullets[i].alive {
+			let rect = bullets[i].rect;
+			let pos = world_to_screen_coords(Point2::new(rect.x,rect.y)) - origin;
+			let image = assets.bullet_image(&bullets[i].tag);
+			let draw_params = graphics::DrawParam::new().dest(pos);
+			graphics::draw(ctx, image, draw_params).unwrap();   
+		}
+	}
     Ok(())
 }
 
@@ -189,6 +217,46 @@ fn draw_creative_pannel(ctx: &mut Context) -> GameResult {
     graphics::draw(ctx, &r1, DrawParam::default())?;
     Ok(())
 }
+/// **************************************************************************************************
+/// Functions handeling actors.
+/// **************************************************************************************************
+
+fn handle_mobs(mygame: &mut MyGame) {
+	for mob in &mut mygame.mobs {
+		if mob.alive {
+			let (i,j) = world_to_board_coords(mob.rect.x, mob.rect.y);
+			if let Some((k,l)) = mygame.map.board[i][j].parent{
+					let m = i as f32 - k as f32;
+					let n = l as f32 - j as f32;
+					let dest = Vector2::new(n, m);
+					mob.update(dest);
+			}
+			mob.walk();
+			let (i,j) = world_to_board_coords(mob.rect.x+mob.rect.w/2.0, mob.rect.y-mob.rect.w/2.0);
+			if mygame.map.board[i][j].tag == blocs::BlocType::Rouge {
+				mob.alive = false;
+			}
+		}
+	}
+}
+
+fn handle_bullets(mygame: &mut MyGame) {
+	for bullet in &mut mygame.bullets {
+		bullet.walk();
+	}
+}
+
+fn handle_collision(mygame: &mut MyGame) {
+	for mob in &mut mygame.mobs {
+		for bullet in &mut mygame.bullets {
+			if mob.rect.overlaps(&mut bullet.rect) {
+				mob.life-= bullet.dmg;
+				bullet.alive = false;
+			}
+		}
+	}
+} 
+
 
 /// **************************************************************************************************
 /// A couple of enum and struct relative to the main game
@@ -211,6 +279,8 @@ struct MyGame {
     pub map: save::Map,
     origin: Vector2,
     settings: Settings,
+	mobs: Vec<mobs::Mob>,
+	bullets: Vec<bullets::Bullet>,
 }
 
 fn load_board() -> save::Map {
@@ -218,7 +288,6 @@ fn load_board() -> save::Map {
         Ok(save) => save.map,
         Err(_) => save::Map{ 
 			board : create_board_rect(14, 20),
-			mobs : vec![],
 		},
     }
 }
@@ -238,6 +307,9 @@ impl MyGame {
             board_height,
             board_width,
         };
+		
+		let mobs: Vec<mobs::Mob> = vec![];
+		let bullets:Vec<bullets::Bullet> = vec![];
 
         let s = MyGame {
             // ...
@@ -245,10 +317,17 @@ impl MyGame {
             map,
             origin,
             settings,
+			mobs,
+			bullets,
         };
 
         Ok(s)
     }
+	
+	fn clear_dead_stuff(&mut self){
+		self.mobs.retain(|x| x.alive);
+		self.bullets.retain(|x| x.alive);
+	}
 }
 
 /// **************************************************************************************************
@@ -296,22 +375,14 @@ impl EventHandler for MyGame {
                 self.origin.x -= CAMERA_SPEED;
             }
 			
-			for mob in &mut self.map.mobs {
-				// let (i,j) = world_to_board_coords(mob.pos.x + mob.mob_size/2.0 , mob.pos.y - mob.mob_size/2.0,self.origin);
-				let (i,j) = world_to_board_coords(mob.pos.x, mob.pos.y,self.origin);
-				println!("(i,j) {:?}",(i,j));	
-				if let Some((k,l)) = self.map.board[i][j].parent{
-						println!("(k,l) {:?}",(k,l));	
-						let m = k as f32 - i as f32;
-						let n = l as f32 - j as f32;
-						println!("(m,n) : {:?}",(m,n));
-						let dest = Vector2::new(n, m * -1.0);
-						println!("dest {:?}",dest);
-						mob.update(dest);
-				}
-				println!("mob dir {:?}",mob.dir);
-				mob.walk();
-			}
+			handle_mobs(self);
+			
+			handle_bullets(self);
+			
+			handle_collision(self);
+			
+			self.clear_dead_stuff();
+			
 
             self.origin.x = self.origin.x.max(-1.0 * BLOC_LENGTH);
             self.origin.y = self.origin.y.max(-1.0 * BLOC_LENGTH);
@@ -325,6 +396,8 @@ impl EventHandler for MyGame {
         draw_board(ctx, self)?;
 		
 		draw_mobs(ctx, self)?;
+		
+		draw_bullets(ctx, self)?;
 
         if self.settings.gamemode == GameMode::Creative {
             draw_creative_pannel(ctx)?;
@@ -381,10 +454,15 @@ impl EventHandler for MyGame {
 			
         }else if keycode == KeyCode::A {
 			ingame::find_path(&mut self.map.board).expect("Error finding Path");
-            self.map.mobs.push(blocs::Mob::new_vert(6,0));
+            self.mobs.push(mobs::Mob::new_vert(6,0));
 			
         }else if keycode == KeyCode::T {
             self.map.board[0][6].tag = blocs::change_bloc_type(&self.map.board[0][6].tag);
+			
+        }else if keycode == KeyCode::D {
+			let pos = board_to_world_coords(5,5);
+            let bullet = bullets::Bullet::new_cb(Vector2::new(pos.0,pos.1));
+			self.bullets.push(bullet); 
 			
         }
     }

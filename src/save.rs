@@ -1,17 +1,16 @@
-use crate::blocs::{Bloc,Mob};
+use crate::blocs::Bloc;
 use ron::de::from_reader;
 use ron::ser::to_string;
 use serde::{Deserialize, Serialize};
 use std::io::{Error, ErrorKind, prelude::*, Result};
 use std::fs::File;
-use ggez::nalgebra;
 
-type Point2 = nalgebra::Point2<f32>;
+
+
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Map {
 	pub board: Vec<Vec<Bloc>>,
-	pub mobs: Vec<Mob>,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
