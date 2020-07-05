@@ -58,4 +58,8 @@ impl Mob {
 			self.dist = Vector2::new(0.0,0.0);
 		}
 	}
+	
+	pub fn pos(&self) -> Vector2 {
+		Vector2::new(self.rect.x, self.rect.y)
+	}
 }

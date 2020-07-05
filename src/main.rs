@@ -15,6 +15,7 @@ mod ingame;
 mod save;
 mod mobs;
 mod bullets;
+mod towers;
 
 type Point2 = nalgebra::Point2<f32>;
 type Vector2 = nalgebra::Vector2<f32>;
@@ -42,6 +43,7 @@ struct Assets {
     bloc_rouge: graphics::Image,
     mob_vert: graphics::Image,
 	bullet_noir: graphics::Image,
+	tower_cannon : graphics::Image,
 }
 
 impl Assets {
@@ -53,7 +55,7 @@ impl Assets {
         let bloc_rouge = graphics::Image::new(ctx, "/rouge_60.png")?;
         let mob_vert = graphics::Image::new(ctx, "/vert_20.png")?;
         let bullet_noir = graphics::Image::new(ctx, "/noir_10.png")?;
-
+		let tower_cannon = graphics::Image::new(ctx, "/cannon_60.png")?;
         Ok(Assets {
             bloc_orange,
             bloc_bleu,
@@ -62,6 +64,7 @@ impl Assets {
             bloc_rouge,
             mob_vert,
 			bullet_noir,
+			tower_cannon,
         })
     }
 
@@ -84,6 +87,12 @@ impl Assets {
 	fn bullet_image(&mut self, bullettype: &bullets::BulletType) -> &mut graphics::Image {
         match bullettype {
             bullets::BulletType::CannonBall => &mut self.bullet_noir,
+        }
+    }
+	
+	fn tower_image(&mut self, towertype: &towers::TowerType) -> &mut graphics::Image {
+        match towertype {
+           towers::TowerType::Cannon => &mut self.tower_cannon,
         }
     }
 }
@@ -144,6 +153,9 @@ fn board_to_world_coords(i : usize, j : usize) -> (f32,f32) {
 	(x,y)
 }
 
+fn vector_to_radian(vec:Vector2) -> f32 {
+	 vec.y.atan2(vec.x)
+}
 /// **************************************************************************************************
 /// A couple of drawing functions.
 /// **************************************************************************************************
@@ -199,6 +211,28 @@ fn draw_bullets(ctx: &mut Context, mygame: &mut MyGame) -> GameResult {
     Ok(())
 }
 
+fn draw_towers(ctx: &mut Context, mygame: &mut MyGame) -> GameResult {
+    let assets = &mut mygame.assets;
+	let origin = mygame.origin.clone();
+	
+	for g in 0..mygame.settings.board_height {
+		for h in 0..mygame.settings.board_width {
+			if let Some(tower) = &mut mygame.towers[g][h] {
+				let rect = tower.rect;
+				let pos = world_to_screen_coords(Point2::new(rect.x,rect.y)) - origin;
+				let image = assets.tower_image(&tower.tag);
+				let draw_params = graphics::DrawParam::new()
+					.dest(pos)
+					.rotation(tower.facing)
+					.offset(Point2::new(0.5, 0.5));
+				graphics::draw(ctx, image, draw_params).unwrap();   
+			}
+		}
+	}
+	
+	Ok(())
+}
+
 fn draw_creative_pannel(ctx: &mut Context) -> GameResult {
 
     // Create and draw a filled rectangle mesh.
@@ -217,45 +251,6 @@ fn draw_creative_pannel(ctx: &mut Context) -> GameResult {
     graphics::draw(ctx, &r1, DrawParam::default())?;
     Ok(())
 }
-/// **************************************************************************************************
-/// Functions handeling actors.
-/// **************************************************************************************************
-
-fn handle_mobs(mygame: &mut MyGame) {
-	for mob in &mut mygame.mobs {
-		if mob.alive {
-			let (i,j) = world_to_board_coords(mob.rect.x, mob.rect.y);
-			if let Some((k,l)) = mygame.map.board[i][j].parent{
-					let m = i as f32 - k as f32;
-					let n = l as f32 - j as f32;
-					let dest = Vector2::new(n, m);
-					mob.update(dest);
-			}
-			mob.walk();
-			let (i,j) = world_to_board_coords(mob.rect.x+mob.rect.w/2.0, mob.rect.y-mob.rect.w/2.0);
-			if mygame.map.board[i][j].tag == blocs::BlocType::Rouge {
-				mob.alive = false;
-			}
-		}
-	}
-}
-
-fn handle_bullets(mygame: &mut MyGame) {
-	for bullet in &mut mygame.bullets {
-		bullet.walk();
-	}
-}
-
-fn handle_collision(mygame: &mut MyGame) {
-	for mob in &mut mygame.mobs {
-		for bullet in &mut mygame.bullets {
-			if mob.rect.overlaps(&mut bullet.rect) {
-				mob.life-= bullet.dmg;
-				bullet.alive = false;
-			}
-		}
-	}
-} 
 
 
 /// **************************************************************************************************
@@ -281,6 +276,7 @@ struct MyGame {
     settings: Settings,
 	mobs: Vec<mobs::Mob>,
 	bullets: Vec<bullets::Bullet>,
+	towers: Vec<Vec<Option<towers::Tower>>>,
 }
 
 fn load_board() -> save::Map {
@@ -310,6 +306,10 @@ impl MyGame {
 		
 		let mobs: Vec<mobs::Mob> = vec![];
 		let bullets:Vec<bullets::Bullet> = vec![];
+		let mut towers : Vec<Vec<Option<towers::Tower>>> = vec![];
+		let mut sub_towers : Vec<Option<towers::Tower>> = vec![];
+		sub_towers.resize(board_width,None);
+		towers.resize(board_height,sub_towers);
 
         let s = MyGame {
             // ...
@@ -319,6 +319,7 @@ impl MyGame {
             settings,
 			mobs,
 			bullets,
+			towers,
         };
 
         Ok(s)
@@ -327,6 +328,92 @@ impl MyGame {
 	fn clear_dead_stuff(&mut self){
 		self.mobs.retain(|x| x.alive);
 		self.bullets.retain(|x| x.alive);
+	}
+	
+	/// **************************************************************************************************
+	/// Functions handeling actors.
+	/// **************************************************************************************************
+
+	fn handle_mobs(&mut self) {
+		for mob in &mut self.mobs {
+			if mob.alive {
+				let (i,j) = world_to_board_coords(mob.rect.x, mob.rect.y);
+				if let Some((k,l)) = self.map.board[i][j].parent{
+						let m = i as f32 - k as f32;
+						let n = l as f32 - j as f32;
+						let dest = Vector2::new(n, m);
+						mob.update(dest);
+				}
+				mob.walk();
+				let (i,j) = world_to_board_coords(mob.rect.x+mob.rect.w/2.0, mob.rect.y-mob.rect.w/2.0);
+				if self.map.board[i][j].tag == blocs::BlocType::Rouge {
+					mob.alive = false;
+				}
+			}
+		}
+	}
+
+	fn handle_bullets(&mut self) {
+		for bullet in &mut self.bullets {
+			bullet.walk();
+		}
+	}
+	
+	fn handle_towers(&mut self) {
+		for i in 0..self.settings.board_height {
+			for j in 0..self.settings.board_width {
+				if let Some(tower) = &mut self.towers[i][j] {
+					
+					let mut mob_in_range = false;
+					// handle rotation
+					if &self.mobs.len() > &0 {
+						let mut dist : f32 = tower.range;
+						let mut pos = Vector2::new(0.0,0.0);
+						for mob in &mut self.mobs {
+							let dt = (tower.pos()-mob.pos()).norm();
+	
+							if dt < dist {
+								mob_in_range = true;
+								dist = dt;
+								pos = mob.pos();
+							}
+						}
+						let mut dir = (pos-tower.pos()).normalize();
+						dir.y *= -1.0;
+						tower.facing = vector_to_radian(dir);
+					}
+					
+					tower.time_to_shoot -= 1.0/ 60.0;
+					if tower.time_to_shoot < 0.0 && mob_in_range{
+						tower.time_to_shoot = tower.time_between_shot;
+						self.bullets.push(tower.shoot());
+					}
+				
+				}
+			}
+		}
+		
+	}
+
+	fn handle_collision(&mut self) {
+		for mob in &mut self.mobs {
+			for bullet in &mut self.bullets {
+				if mob.rect.overlaps(&mut bullet.rect) {
+					mob.life-= bullet.dmg;
+					bullet.alive = false;
+				}
+			}
+		}
+	} 
+	
+	/// **************************************************************************************************
+	/// Other functions
+	/// **************************************************************************************************
+	
+	fn add_tower(&mut self, k:usize, l:usize) {
+		let (i,j) = board_to_world_coords(k,l);
+		let tower = towers::Tower::new(Vector2::new(i+30.0,j-30.0));
+		self.towers[k][l] = Some(tower);
 	}
 }
 
@@ -375,11 +462,14 @@ impl EventHandler for MyGame {
                 self.origin.x -= CAMERA_SPEED;
             }
 			
-			handle_mobs(self);
+			self.handle_mobs();
 			
-			handle_bullets(self);
+			self.handle_bullets();
 			
-			handle_collision(self);
+			self.handle_towers();
+			
+			self.handle_collision();
+			
 			
 			self.clear_dead_stuff();
 			
@@ -398,6 +488,8 @@ impl EventHandler for MyGame {
 		draw_mobs(ctx, self)?;
 		
 		draw_bullets(ctx, self)?;
+		
+		draw_towers(ctx, self)?;
 
         if self.settings.gamemode == GameMode::Creative {
             draw_creative_pannel(ctx)?;
@@ -457,11 +549,11 @@ impl EventHandler for MyGame {
             self.mobs.push(mobs::Mob::new_vert(6,0));
 			
         }else if keycode == KeyCode::T {
-            self.map.board[0][6].tag = blocs::change_bloc_type(&self.map.board[0][6].tag);
+            self.add_tower(4,5);
 			
         }else if keycode == KeyCode::D {
-			let pos = board_to_world_coords(5,5);
-            let bullet = bullets::Bullet::new_cb(Vector2::new(pos.0,pos.1));
+			let pos = board_to_world_coords(4,5);
+            let bullet = bullets::Bullet::new_cb(Vector2::new(pos.0+25.0,pos.1-25.0));
 			self.bullets.push(bullet); 
 			
         }
